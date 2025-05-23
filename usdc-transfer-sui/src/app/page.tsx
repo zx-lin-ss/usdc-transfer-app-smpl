@@ -10,24 +10,30 @@ import { SuiClientProvider, useSuiClient } from '@mysten/dapp-kit'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { TransactionBlock } from '@mysten/sui.js/transactions'
 
+// Define the network we're connecting to (testnet in this case)
 const networks = {
   testnet: { url: 'https://fullnode.testnet.sui.io:443' },
 }
 
+// Create a new QueryClient for managing and caching asynchronous queries
 const queryClient = new QueryClient()
 
+// Define the USDC token type on Sui testnet
+// This is the unique identifier for the USDC token on Sui
 const USDC_TYPE =
   '0xa1ec7fc00a6f40db9693ad1415d0c193ad3906494428cf252621037bd7117e29::usdc::USDC'
 
 function HomeContent() {
+  // Use the wallet kit to get the current account and transaction signing function
   const { currentAccount, signAndExecuteTransactionBlock } = useWalletKit()
+  // Get the Sui client for interacting with the Sui network
   const suiClient = useSuiClient()
-
   const [connected, setConnected] = useState(false)
   const [amount, setAmount] = useState('')
   const [recipientAddress, setRecipientAddress] = useState('')
   const [txStatus, setTxStatus] = useState('')
-
+  
+  // Update the connection status when the current account changes
   useEffect(() => {
     setConnected(!!currentAccount)
   }, [currentAccount])
@@ -38,6 +44,8 @@ function HomeContent() {
       return
     }
     try {
+      // Fetch USDC coins owned by the current account
+      // This uses the SuiClient to get coins of the specified type owned by the current address
       const { data: coins } = await suiClient.getCoins({
         owner: currentAccount.address,
         coinType: USDC_TYPE,
@@ -46,13 +54,20 @@ function HomeContent() {
         setTxStatus('No USDC coins found in your wallet')
         return
       }
-
+      
+      // Create a new transaction block
+      // TransactionBlock is used to construct and execute transactions on Sui
       const tx = new TransactionBlock()
+      // Split the coin and get a new coin with the specified amount
+      // This creates a new coin object with the desired amount to be transferred
       const [coin] = tx.splitCoins(coins[0].coinObjectId, [
         tx.pure(BigInt(amount)),
       ])
+      // Transfer the split coin to the recipient
+      // This adds a transfer operation to the transaction block
       tx.transferObjects([coin], tx.pure(recipientAddress))
-
+      // Sign and execute the transaction block
+      // This sends the transaction to the network and waits for it to be executed
       const result = await signAndExecuteTransactionBlock({
         transactionBlock: tx,
       })
@@ -109,6 +124,10 @@ function HomeContent() {
 
 export default function Home() {
   return (
+    // Wrap the app with necessary providers
+    // QueryClientProvider: Provides React Query context for managing async queries
+    // SuiClientProvider: Provides the Sui client context for interacting with the Sui network
+    // WalletKitProvider: Provides wallet connection and interaction capabilities
     <QueryClientProvider client={queryClient}>
       <SuiClientProvider networks={networks} network="testnet">
         <WalletKitProvider>
